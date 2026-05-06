@@ -1,0 +1,4 @@
+The problem has been solved. The major problem is the space time from 300us to 400us
+Edit ppm.h, change
+
+Set the remote to PTF mode(follow the manual) and set to 24ms(follow the manual)

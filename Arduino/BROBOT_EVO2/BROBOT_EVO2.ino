@@ -104,7 +104,7 @@
 
 #define MICROSTEPPING 16   // 8 or 16 for 1/8 or 1/16 driver microstepping (default:16)
 
-#define DEBUG 0   // 0 = No debug info (default) DEBUG 1 for console output
+#define DEBUG 1   // 0 = No debug info (default) DEBUG 1 for console output
 
 // AUX definitions
 #define CLR(x,y) (x&=(~(1<<y)))
@@ -214,73 +214,20 @@ void setup()
   // Initialize I2C bus (MPU6050 is connected via I2C)
   Wire.begin();
 
+  Serial.println("RCROBOTS by Mick K");
+  delay(200);
+  Serial.println("Don't move for 10 sec...");
+
 #if DEBUG > 0
   delay(9000);
 #else
   delay(1000);
 #endif
-  Serial.println("JJROBOTS");
-  delay(200);
-  Serial.println("Don't move for 10 sec...");
   MPU6050_setup();  // setup MPU6050 IMU
   delay(500);
 
-  // With the new ESP8266 WIFI MODULE WE NEED TO MAKE AN INITIALIZATION PROCESS
-  Serial.println("WIFI init");
-  Serial1.flush();
-  Serial1.print("+++");  // To ensure we exit the transparent transmision mode
-  delay(100);
-  ESPsendCommand("AT", "OK", 1);
-  ESPsendCommand("AT+RST", "OK", 2); // ESP Wifi module RESET
-  ESPwait("ready", 6);
-  ESPsendCommand("AT+GMR", "OK", 5);
-
-#ifdef EXTERNAL_WIFI
-  ESPsendCommand("AT+CWQAP", "OK", 3);
-  ESPsendCommand("AT+CWMODE=1", "OK", 3);
-  //String auxCommand = (String)"AT+CWJAP="+WIFI_SSID+","+WIFI_PASSWORD;
-  char auxCommand[90] = "AT+CWJAP=\"";
-  strcat(auxCommand, WIFI_SSID);
-  strcat(auxCommand, "\",\"");
-  strcat(auxCommand, WIFI_PASSWORD);
-  strcat(auxCommand, "\"");
-  ESPsendCommand(auxCommand, "OK", 14);
-#ifdef WIFI_IP
-  strcpy(auxCommand, "AT+CIPSTA=\"");
-  strcat(auxCommand, WIFI_IP);
-  strcat(auxCommand, "\"");
-  ESPsendCommand(auxCommand, "OK", 4);
-#endif
-  ESPsendCommand("AT+CIPSTA?", "OK", 4);
-#else  // Deafault : we generate a wifi network
-  Serial1.println("AT+CIPSTAMAC?");
-  ESPgetMac();
-  //Serial.print("MAC:");
-  //Serial.println(MAC);
-  delay(200);
-  ESPsendCommand("AT+CWQAP", "OK", 3);
-  ESPsendCommand("AT+CWMODE=2", "OK", 3); // Soft AP mode
-  // Generate Soft AP. SSID=JJROBOTS, PASS=87654321
-  char *cmd =  "AT+CWSAP=\"JJROBOTS_XX\",\"87654321\",5,3";
-  // Update XX characters with MAC address (last 2 characters)
-  cmd[19] = MAC[10];
-  cmd[20] = MAC[11];
-  ESPsendCommand(cmd, "OK", 6);
-#endif
-  // Start UDP SERVER on port 2222, telemetry port 2223
-  Serial.println("Start UDP server");
-  ESPsendCommand("AT+CIPMUX=0", "OK", 3);  // Single connection mode
-  ESPsendCommand("AT+CIPMODE=1", "OK", 3); // Transparent mode
-  char Telemetry[80];
-  strcpy(Telemetry,"AT+CIPSTART=\"UDP\",\"");
-  strcat(Telemetry,TELEMETRY);
-  strcat(Telemetry,"\",2223,2222,0");
-  ESPsendCommand(Telemetry, "OK", 3); 
-
   // Calibrate gyros
   MPU6050_calibrate();
-
-  ESPsendCommand("AT+CIPSEND", ">", 2); // Start transmission (transparent mode)
 
   // Init servos
   Serial.println("Servo init");
