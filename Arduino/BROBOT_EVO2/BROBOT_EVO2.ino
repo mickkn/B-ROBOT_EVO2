@@ -2,6 +2,7 @@
  * @file        BROBOT_EVO2.ino
  *
  * @brief       RC Version of BROBOT EVO 2, the self balance robot with stepper motors by JJROBOTS.
+ *
  * @details     Based on version 2.82, but with some modifications to be controlled by RC remote instead of WiFi.
  *              The code is simplified and some features are removed to make it more suitable for RC control.
  *
@@ -81,6 +82,10 @@
 #define DIR_M2  5           // C6
 #define DIR_M2_PORT PORTC
 #define DIR_M2_PIN 6
+
+#define PWM_CH1 10          // B6
+#define PWM_CH2 1           // D3
+#define PWM_CH3 0           // D2
 
 uint8_t cascade_control_loop_counter = 0;
 uint8_t loop_counter;           // To generate a medium loop 40Hz

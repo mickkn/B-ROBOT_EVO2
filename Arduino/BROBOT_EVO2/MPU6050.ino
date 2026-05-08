@@ -1,13 +1,24 @@
-// BROBOT EVO 2 by JJROBOTS
-// SELF BALANCE ARDUINO ROBOT WITH STEPPER MOTORS
-// License: GPL v2
-// MPU6050 IMU code
-// Read the accel and gyro registers and calculate a complementary filter for sensor fusion between gyros and accel
-
-// Code based on arduino.cc MPU6050 sample
-// Open Source / Public Domain
-//
-// Documentation:"MPU-6000 and MPU-6050 Register Map and Descriptions": RM-MPU-6000A.pdf
+/**
+ * @file        MPU6050.ino
+ *
+ * @brief       MPU6050 IMU code for BROBOT EVO 2, the self balance robot with stepper motors by JJROBOTS. This
+ *              file contains the definitions and functions to interface with the MPU6050 IMU sensor, read the
+ *              accelerometer and gyroscope data, and calculate the orientation angle using a complementary filter for sensor fusion.
+ *
+ * @details     The MPU6050 is a 6-axis IMU sensor that combines a 3-axis gyroscope and a 3-axis accelerometer.
+ *              This code reads the raw data from the sensor, applies a complementary filter to combine the accelerometer
+ *              and gyroscope data, and provides an estimated angle of the robot's orientation. The complementary filter
+ *              helps to mitigate the drift from the gyroscope and the noise from the accelerometer, providing a more
+ *              stable angle estimation for the control algorithms of the robot.
+ *
+ *              Code based on arduino.cc MPU6050 sample
+ *              Open Source / Public Domain
+ *              Documentation:"MPU-6000 and MPU-6050 Register Map and Descriptions": RM-MPU-6000A.pdf
+ *
+ * @date        08-05-2026
+ * @author      Mick K
+ *
+ */
 
 // MPU6050 Register map
 #define MPU6050_AUX_VDDIO          0x01   // R/W
@@ -470,7 +481,10 @@ float x_gyro_offset = 0.0;
 float accel_angle;  // in degree units
 float angle;
 
-// This function implements a complementary filter to fusion gyro and accel info
+/**
+ * @brief Read the 3 axis values of the accelerometer and the gyro, and the temperature value.
+ *        The values are stored in the global variable "accel_t_gyro".
+ */
 float MPU6050_getAngle(float dt)
 {
     accel_angle = atan2f((float)accel_t_gyro.value.y_accel, (float)accel_t_gyro.value.z_accel) * RAD2GRAD;
@@ -492,7 +506,13 @@ float MPU6050_getAngle(float dt)
     return angle;
 }
 
-// Calibrate function. Take 100 readings (over 2 seconds) to calculate the gyro offset value. IMU should be steady in this process...
+/**
+ * @brief Calibrate the gyro by taking 100 measurements in 4 seconds, and calculating the mean value and the standard deviation.
+ *        The mean value is stored in the global variable "x_gyro_offset", and the standard deviation is used to check if
+ *        the calibration is successful (it should be less than 50.0).
+ *        The function will repeat the calibration process until the standard deviation is less than 50.0,
+ *        and the user is not moving the robot.
+ */
 void MPU6050_calibrate()
 {
     int i;
@@ -534,6 +554,11 @@ void MPU6050_calibrate()
     angle = atan2f((float)accel_t_gyro.value.y_accel, (float)accel_t_gyro.value.z_accel) * RAD2GRAD;
 }
 
+/**
+ * @brief Initialize the MPU6050 sensor by configuring the registers for the desired settings.
+ *        The function will reset the sensor, set the clock source, configure the gyro and accel scales,
+ *        set the digital low pass filter, set the sample rate, enable the data ready interrupt, and start the sensor.
+ */
 void MPU6050_setup()
 {
     int error;
@@ -570,6 +595,10 @@ void MPU6050_setup()
     //MPU6050_write_reg (MPU6050_PWR_MGMT_1, 0);
 }
 
+/**
+ * @brief Read the 3 axis values of the accelerometer and the gyro, and the temperature value.
+ *        The values are stored in the global variable "accel_t_gyro".
+ */
 void MPU6050_read_3axis()
 {
     int error;
@@ -612,6 +641,10 @@ void MPU6050_read_3axis()
     */
 }
 
+/**
+ * @brief Read the X axis values of the accelerometer and the gyro, and the temperature value.
+ *        The values are stored in the global variable "accel_t_gyro".
+ */
 void MPU6050_read_1axis()
 {
     int error;
@@ -641,7 +674,10 @@ void MPU6050_read_1axis()
     Serial.println(accel_t_gyro.value.x_gyro, DEC);
 }
 
-// return true on new data available
+/**
+ * @brief Check if new data is available by reading the INT_STATUS register and checking the Data Ready bit.
+ *        The function returns true if new data is available, and false otherwise.
+ */
 bool MPU6050_newData()
 {
     uint8_t status;
@@ -659,7 +695,10 @@ bool MPU6050_newData()
         return false;
 }
 
-// MPU6050_read n bytes
+/**
+ * @brief Read n bytes from the MPU6050 starting from the given register address, and store them in the provided buffer.
+ *        The function returns 0 if the read operation is successful, and a negative value if there is an error.
+ */
 int MPU6050_read(int start, uint8_t *buffer, int size)
 {
     int i, n, error;
@@ -687,7 +726,10 @@ int MPU6050_read(int start, uint8_t *buffer, int size)
 }
 
 
-// MPU6050_write n bytes
+/**
+ * @brief Write n bytes to the MPU6050 starting from the given register address, and the data is provided in the buffer.
+ *        The function returns 0 if the write operation is successful, and a negative value if there is an error.
+ */
 int MPU6050_write(int start, const uint8_t *pData, int size)
 {
     int n, error;
@@ -708,8 +750,10 @@ int MPU6050_write(int start, const uint8_t *pData, int size)
     return (0);         // return : no error
 }
 
-// --------------------------------------------------------
-// MPU6050_write_reg (only 1 byte)
+/**
+ * @brief Write a single byte to the MPU6050 at the given register address, and the data is provided in the parameter "data".
+ *        The function returns 0 if the write operation is successful, and a negative value if there is an error.
+ */
 int MPU6050_write_reg(int reg, uint8_t data)
 {
     int error;
