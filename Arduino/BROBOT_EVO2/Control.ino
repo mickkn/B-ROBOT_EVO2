@@ -54,30 +54,33 @@ float positionPDControl(long actualPos, long setPointPos, float Kpp, float Kdp, 
 // TIMER 1 : STEPPER MOTOR1 SPEED CONTROL
 ISR(TIMER1_COMPA_vect)
 {
-  if (dir_M1 == 0) // If we are not moving we dont generate a pulse
+  if (dir_M1 == 0)
     return;
-  // We generate 1us STEP pulse
-  SET(PORTE, 6); // STEP MOTOR 1
-  //delay_1us();
+
+  SET(STEP_M1_PORT, STEP_M1_PIN);
+  asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop");
+  CLR(STEP_M1_PORT, STEP_M1_PIN);
+
   if (dir_M1 > 0)
     steps1--;
   else
     steps1++;
-  CLR(PORTE, 6);
 }
+
 // TIMER 3 : STEPPER MOTOR2 SPEED CONTROL
 ISR(TIMER3_COMPA_vect)
 {
-  if (dir_M2 == 0) // If we are not moving we dont generate a pulse
+  if (dir_M2 == 0)
     return;
-  // We generate 1us STEP pulse
-  SET(PORTD, 6); // STEP MOTOR 2
-  //delay_1us();
+
+  SET(STEP_M2_PORT, STEP_M2_PIN);
+  asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop");
+  CLR(STEP_M2_PORT, STEP_M2_PIN);
+
   if (dir_M2 > 0)
     steps2--;
   else
     steps2++;
-  CLR(PORTD, 6);
 }
 
 
@@ -110,17 +113,17 @@ void setMotorSpeedM1(int16_t tspeed)
     dir_M1 = 0;
   }
   else if (speed > 0)
-  {
-    timer_period = 2000000 / speed; // 2Mhz timer
-    dir_M1 = 1;
-    SET(PORTB, 4); // DIR Motor 1 (Forward)
-  }
-  else
-  {
-    timer_period = 2000000 / -speed;
-    dir_M1 = -1;
-    CLR(PORTB, 4); // Dir Motor 1
-  }
+{
+  timer_period = 2000000 / speed;
+  dir_M1 = 1;
+  SET(DIR_M1_PORT, DIR_M1_PIN);
+}
+else
+{
+  timer_period = 2000000 / -speed;
+  dir_M1 = -1;
+  CLR(DIR_M1_PORT, DIR_M1_PIN);
+}
   if (timer_period > 65535)   // Check for minimun speed (maximun period without overflow)
     timer_period = ZERO_SPEED;
 
@@ -162,13 +165,13 @@ void setMotorSpeedM2(int16_t tspeed)
   {
     timer_period = 2000000 / speed; // 2Mhz timer
     dir_M2 = 1;
-    CLR(PORTC, 6);   // Dir Motor2 (Forward)
+    CLR(DIR_M2_PORT, DIR_M2_PIN);   // Dir Motor2 (Forward)
   }
   else
   {
     timer_period = 2000000 / -speed;
     dir_M2 = -1;
-    SET(PORTC, 6);  // DIR Motor 2
+    SET(DIR_M2_PORT, DIR_M2_PIN);
   }
   if (timer_period > 65535)   // Check for minimun speed (maximun period without overflow)
     timer_period = ZERO_SPEED;

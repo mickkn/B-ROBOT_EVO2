@@ -46,15 +46,6 @@
 
 #include <Wire.h>
 
-// Uncomment this lines to connect to an external Wifi router (join an existing Wifi network)
-//#define EXTERNAL_WIFI
-//#define WIFI_SSID "YOUR_WIFI"
-//#define WIFI_PASSWORD "YOUR_PASSWORD"
-//#define WIFI_IP "192.168.1.101"  // Force ROBOT IP
-//#define TELEMETRY "192.168.1.38" // Tlemetry server port 2223
-
-#define TELEMETRY "192.168.4.2" // Default telemetry server (first client) port 2223
-
 // NORMAL MODE PARAMETERS (MAXIMUN SETTINGS)
 #define MAX_THROTTLE 550
 #define MAX_STEERING 140
@@ -77,34 +68,30 @@
 // Control gains for raiseup (the raiseup movement requiere special control parameters)
 #define KP_RAISEUP 0.1   
 #define KD_RAISEUP 0.16   
-#define KP_THROTTLE_RAISEUP 0   // No speed control on raiseup
+#define KP_THROTTLE_RAISEUP 0      // No speed control on raiseup
 #define KI_THROTTLE_RAISEUP 0.0
 
 #define MAX_CONTROL_OUTPUT 500
-#define ITERM_MAX_ERROR 30   // Iterm windup constants for PI control 
+#define ITERM_MAX_ERROR 30        // Iterm windup constants for PI control 
 #define ITERM_MAX 10000
 
-#define ANGLE_OFFSET 0.0  // Offset angle for balance (to compensate robot own weight distribution)
+#define ANGLE_OFFSET 0.0          // Offset angle for balance (to compensate robot own weight distribution)
 
 // Servo definitions
-#define SERVO_AUX_NEUTRO 1500  // Servo neutral position
+#define SERVO_AUX_NEUTRO 1500     // Servo neutral position
 #define SERVO_MIN_PULSEWIDTH 700
 #define SERVO_MAX_PULSEWIDTH 2500
 
 #define SERVO2_NEUTRO 1500
 #define SERVO2_RANGE 1400
 
-// Telemetry
-#define TELEMETRY_BATTERY 1
-#define TELEMETRY_ANGLE 1
-//#define TELEMETRY_DEBUG 1  // Dont use TELEMETRY_ANGLE and TELEMETRY_DEBUG at the same time!
-
 #define ZERO_SPEED 65535
-#define MAX_ACCEL 14      // Maximun motor acceleration (MAX RECOMMENDED VALUE: 20) (default:14)
+#define MAX_ACCEL 14          // Maximun motor acceleration (MAX RECOMMENDED VALUE: 20) (default:14)
 
-#define MICROSTEPPING 16   // 8 or 16 for 1/8 or 1/16 driver microstepping (default:16)
+#define MICROSTEPPING 16      // 8 or 16 for 1/8 or 1/16 driver microstepping (default:16) A4988, all MS pins high.
 
-#define DEBUG 1   // 0 = No debug info (default) DEBUG 1 for console output
+#define DEBUG 1               // 0 = No debug info (default) DEBUG 1 for console output
+#define DEBUG_MPU 0
 
 // AUX definitions
 #define CLR(x,y) (x&=(~(1<<y)))
@@ -112,12 +99,26 @@
 #define RAD2GRAD 57.2957795
 #define GRAD2RAD 0.01745329251994329576923690768489
 
-String MAC;  // MAC address of Wifi module
+// Pins
+#define ENABLE_MOTORS 4
+
+#define STEP_M1 11          // B7
+#define STEP_M1_PORT PORTB
+#define STEP_M1_PIN 7
+#define DIR_M1  8           // B4
+#define DIR_M1_PORT PORTB
+#define DIR_M1_PIN 4
+
+#define STEP_M2 12          // D6
+#define STEP_M2_PORT PORTD
+#define STEP_M2_PIN 6
+#define DIR_M2  5           // C6
+#define DIR_M2_PORT PORTC
+#define DIR_M2_PIN 6
 
 uint8_t cascade_control_loop_counter = 0;
-uint8_t loop_counter;       // To generate a medium loop 40Hz
-uint8_t slow_loop_counter;  // slow loop 2Hz
-uint8_t sendBattery_counter; // To send battery status
+uint8_t loop_counter;           // To generate a medium loop 40Hz
+uint8_t slow_loop_counter;      // slow loop 2Hz
 int16_t BatteryValue;
 
 long timer_old;
@@ -198,23 +199,21 @@ int16_t OSCmove_steps2;
 void setup()
 {
   // STEPPER PINS ON JJROBOTS BROBOT BRAIN BOARD
-  pinMode(4, OUTPUT); // ENABLE MOTORS
-  pinMode(7, OUTPUT); // STEP MOTOR 1 PORTE,6
-  pinMode(8, OUTPUT); // DIR MOTOR 1  PORTB,4
-  pinMode(12, OUTPUT); // STEP MOTOR 2 PORTD,6
-  pinMode(5, OUTPUT); // DIR MOTOR 2  PORTC,6
-  digitalWrite(4, HIGH);  // Disbale motors
-  pinMode(10, OUTPUT);  // Servo1 (arm)
-  pinMode(13, OUTPUT);  // Servo2
+  pinMode(ENABLE_MOTORS, OUTPUT);     // ENABLE MOTORS
+  pinMode(STEP_M1, OUTPUT);           // STEP MOTOR 1
+  pinMode(DIR_M1, OUTPUT);            // DIR MOTOR 1
+  pinMode(STEP_M2, OUTPUT);           // STEP MOTOR 2
+  pinMode(DIR_M2, OUTPUT);            // DIR MOTOR 2
+  digitalWrite(ENABLE_MOTORS, HIGH);  // Disable motors     - Teensy D4
+  pinMode(10, OUTPUT);                // Servo1 (arm)         - Teensy B6
+  pinMode(13, OUTPUT);                // Servo2
 
   Serial.begin(115200); // Serial output to console
-  Serial1.begin(115200);
-  OSC_init();
 
   // Initialize I2C bus (MPU6050 is connected via I2C)
   Wire.begin();
 
-  Serial.println("RCROBOTS by Mick K");
+  Serial.println("R-ROBOTS by Mick K");
   delay(200);
   Serial.println("Don't move for 10 sec...");
 
@@ -235,27 +234,29 @@ void setup()
   BROBOT_moveServo1(SERVO_AUX_NEUTRO);
 
   // STEPPER MOTORS INITIALIZATION
-  Serial.println("Stepers init");
+  Serial.println("Steppers init");
   // MOTOR1 => TIMER1
-  TCCR1A = 0;                       // Timer1 CTC mode 4, OCxA,B outputs disconnected
-  TCCR1B = (1 << WGM12) | (1 << CS11); // Prescaler=8, => 2Mhz
-  OCR1A = ZERO_SPEED;               // Motor stopped
+  TCCR1A = 0;                           // Timer1 CTC mode 4, OCxA,B outputs disconnected
+  TCCR1B = (1 << WGM12) | (1 << CS11);  // Prescaler=8, => 2Mhz
+  OCR1A = ZERO_SPEED;                   // Motor stopped
   dir_M1 = 0;
   TCNT1 = 0;
 
   // MOTOR2 => TIMER3
-  TCCR3A = 0;                       // Timer3 CTC mode 4, OCxA,B outputs disconnected
-  TCCR3B = (1 << WGM32) | (1 << CS31); // Prescaler=8, => 2Mhz
-  OCR3A = ZERO_SPEED;   // Motor stopped
+  TCCR3A = 0;                           // Timer3 CTC mode 4, OCxA,B outputs disconnected
+  TCCR3B = (1 << WGM32) | (1 << CS31);  // Prescaler=8, => 2Mhz
+  OCR3A = ZERO_SPEED;                   // Motor stopped
   dir_M2 = 0;
   TCNT3 = 0;
+
   delay(200);
 
   // Enable stepper drivers and TIMER interrupts
-  digitalWrite(4, LOW);   // Enable stepper drivers
+  digitalWrite(ENABLE_MOTORS, LOW);   // Enable stepper drivers
+
   // Enable TIMERs interrupts
   TIMSK1 |= (1 << OCIE1A); // Enable Timer1 interrupt
-  TIMSK3 |= (1 << OCIE1A); // Enable Timer1 interrupt
+  TIMSK3 |= (1 << OCIE3A); // Enable Timer3 interrupt
 
   // Little motor vibration and servo move to indicate that robot is ready
   for (uint8_t k = 0; k < 5; k++)
@@ -274,11 +275,6 @@ void setup()
   BROBOT_moveServo1(SERVO_AUX_NEUTRO);
   BROBOT_moveServo2(SERVO2_NEUTRO);
 
- #if TELEMETRY_BATTERY==1
-  BatteryValue = BROBOT_readBattery(true);
-  Serial.print("BATT:");
-  Serial.println(BatteryValue);
-#endif
   Serial.println("BROBOT by JJROBOTS v2.82");
   Serial.println("Start...");
   timer_old = micros();
@@ -288,82 +284,19 @@ void setup()
 // MAIN LOOP
 void loop()
 {
-  OSC_MsgRead();  // Read UDP OSC messages
-  if (OSCnewMessage)
-  {
-    OSCnewMessage = 0;
-    if (OSCpage == 1)   // Get commands from user (PAGE1 are user commands: throttle, steering...)
-    {
-      if (modifing_control_parameters)  // We came from the settings screen
-      {
-        OSCfader[0] = 0.5; // default neutral values
-        OSCfader[1] = 0.5;
-        OSCtoggle[0] = 0;  // Normal mode
-        mode = 0;
-        modifing_control_parameters = false;
-      }
-
-      if (OSCmove_mode)
-      {
-        //Serial.print("M ");
-        //Serial.print(OSCmove_speed);
-        //Serial.print(" ");
-        //Serial.print(OSCmove_steps1);
-        //Serial.print(",");
-        //Serial.println(OSCmove_steps2);
-        positionControlMode = true;
-        OSCmove_mode = false;
-        target_steps1 = steps1 + OSCmove_steps1;
-        target_steps2 = steps2 + OSCmove_steps2;
-      }
-      else
-      {
-        positionControlMode = false;
-        throttle = (OSCfader[0] - 0.5) * max_throttle;
-        // We add some exponential on steering to smooth the center band
-        steering = OSCfader[1] - 0.5;
-        if (steering > 0)
-          steering = (steering * steering + 0.5 * steering) * max_steering;
-        else
-          steering = (-steering * steering + 0.5 * steering) * max_steering;
-      }
-
-      if ((mode == 0) && (OSCtoggle[0]))
-      {
-        // Change to PRO mode
-        max_throttle = MAX_THROTTLE_PRO;
-        max_steering = MAX_STEERING_PRO;
-        max_target_angle = MAX_TARGET_ANGLE_PRO;
-        mode = 1;
-      }
-      if ((mode == 1) && (OSCtoggle[0] == 0))
-      {
-        // Change to NORMAL mode
-        max_throttle = MAX_THROTTLE;
-        max_steering = MAX_STEERING;
-        max_target_angle = MAX_TARGET_ANGLE;
-        mode = 0;
-      }
-    }
-    else if (OSCpage == 2) { // OSC page 2
-      // Check for new user control parameters
-      readControlParameters();
-    }
-#if DEBUG==1
-    Serial.print(throttle);
-    Serial.print(" ");
-    Serial.println(steering);
-#endif
-  } // End new OSC message
-
+  
   timer_value = micros();
 
   // New IMU data?
   if (MPU6050_newData())
   {
+    
+
     MPU6050_read_3axis();
+
     loop_counter++;
     slow_loop_counter++;
+    
     dt = (timer_value - timer_old) * 0.000001; // dt in seconds
     timer_old = timer_value;
 
@@ -374,7 +307,7 @@ void loop()
     if ((MPU_sensor_angle>-15)&&(MPU_sensor_angle<15))
       angle_adjusted_filtered = angle_adjusted_filtered*0.99 + MPU_sensor_angle*0.01;
       
-#if DEBUG==1
+#if DEBUG_MPU==1
     Serial.print(dt);
     Serial.print(" ");
     Serial.print(angle_offset);
@@ -383,6 +316,25 @@ void loop()
     Serial.print(",");
     Serial.println(angle_adjusted_filtered);
 #endif
+
+#if DEBUG==1
+    static uint32_t lastDebug = 0;
+    static uint16_t imuCount = 0;
+
+    imuCount++;
+
+    if (millis() - lastDebug >= 1000)
+    {
+      Serial.print("IMU Hz: ");
+      Serial.print(imuCount);
+      Serial.print(" dt: ");
+      Serial.println(dt, 6);
+
+      imuCount = 0;
+      lastDebug = millis();
+    }
+#endif
+
     //Serial.print("\t");
 
     // We calculate the estimated robot speed:
@@ -448,14 +400,14 @@ void loop()
     if ((angle_adjusted < angle_ready) && (angle_adjusted > -angle_ready)) // Is robot ready (upright?)
     {
       // NORMAL MODE
-      digitalWrite(4, LOW);  // Motors enable
+      digitalWrite(ENABLE_MOTORS, LOW);  // Motors enable
       // NOW we send the commands to the motors
       setMotorSpeedM1(motor1);
       setMotorSpeedM2(motor2);
     }
     else   // Robot not ready (flat), angle > angle_ready => ROBOT OFF
     {
-      digitalWrite(4, HIGH);  // Disable motors
+      digitalWrite(ENABLE_MOTORS, HIGH);  // Disable motors
       setMotorSpeedM1(0);
       setMotorSpeedM2(0);
       PID_errorSum = 0;  // Reset PID I term
@@ -508,36 +460,11 @@ void loop()
   if (loop_counter >= 15)
   {
     loop_counter = 0;
-    // Telemetry here?
-#if TELEMETRY_ANGLE==1
-    char auxS[25];
-    int ang_out = constrain(int(angle_adjusted * 10),-900,900);
-    sprintf(auxS, "$tA,%+04d", ang_out);
-    Serial1.println(auxS);
-#endif
-#if TELEMETRY_DEBUG==1
-    char auxS[50];
-    sprintf(auxS, "$tD,%d,%d,%ld", int(angle_adjusted * 10), int(estimated_speed_filtered), steps1);
-    Serial1.println(auxS);
-#endif
 
   } // End of medium loop
   else if (slow_loop_counter >= 100) // 1Hz
   {
     slow_loop_counter = 0;
-    // Read  status
-#if TELEMETRY_BATTERY==1
-    BatteryValue = (BatteryValue + BROBOT_readBattery(false)) / 2;
-    sendBattery_counter++;
-    if (sendBattery_counter >= 3) { //Every 3 seconds we send a message
-      sendBattery_counter = 0;
-      Serial.print("B");
-      Serial.println(BatteryValue);
-      char auxS[25];
-      sprintf(auxS, "$tB,%04d", BatteryValue);
-      Serial1.println(auxS);
-    }
-#endif
   }  // End of slow loop
 }
 
