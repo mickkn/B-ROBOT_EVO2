@@ -88,8 +88,8 @@ ISR(TIMER3_COMPA_vect)
 // tspeed could be positive or negative (reverse)
 void setMotorSpeedM1(int16_t tspeed)
 {
-  long timer_period;
-  int16_t speed;
+  int32_t speed;
+  int32_t timer_period;
 
   // Limit max speed?
 
@@ -137,8 +137,8 @@ else
 // tspeed could be positive or negative (reverse)
 void setMotorSpeedM2(int16_t tspeed)
 {
-  long timer_period;
-  int16_t speed;
+  int32_t speed;
+  int32_t timer_period;
 
   // Limit max speed?
 

@@ -1,59 +1,25 @@
-// BROBOT EVO 2 by JJROBOTS
-// SELF BALANCE ARDUINO ROBOT WITH STEPPER MOTORS CONTROLLED WITH YOUR SMARTPHONE
-// JJROBOTS BROBOT KIT: (Arduino Leonardo + BROBOT ELECTRONIC BRAIN SHIELD + STEPPER MOTOR drivers)
-// This code is prepared for new BROBOT shield  with ESP8266 Wifi module
-// Author: JJROBOTS.COM
-// Date: 02/09/2014
-// Updated: 25/06/2017
-// Version: 2.82
-// License: GPL v2
-// Compiled and tested with Arduino 1.6.8. This new version of code does not need external libraries (only Arduino standard libraries)
-// Project URL: http://jjrobots.com/b-robot-evo-2-much-more-than-a-self-balancing-robot (Features,documentation,build instructions,how it works, SHOP,...)
-// New updates:
-//   - New default parameters specially tuned for BROBOT EVO 2 version (More agile, more stable...)
-//   - New Move mode with position control (for externally programming the robot with a Blockly or pyhton programming interfaces)
-//   - New telemtry packets send to TELEMETRY IP for monitoring Battery, Angle, ... (old battery packets for touch osc not working now)
-//   - Default telemetry server is 192.168.4.2 (first client connected to the robot)
-//  Get the free android app (jjrobots) from google play. For IOS users you need to use TouchOSC App + special template (info on jjrobots page)
-//  Thanks to our users on the forum for the new ideas. Specially sasa999, KomX, ...
-
-// The board needs at least 10-15 seconds with no motion (robot steady) at beginning to give good values... Robot move slightly when it´s ready!
-// MPU6050 IMU connected via I2C bus. Angle estimation using complementary filter (fusion between gyro and accel)
-// Angle calculations and control part is running at 100Hz
-
-// The robot is OFF when the angle is high (robot is horizontal). When you start raising the robot it
-// automatically switch ON and start a RAISE UP procedure.
-// You could RAISE UP the robot also with the robot arm servo (Servo button on the interface)
-// To switch OFF the robot you could manually put the robot down on the floor (horizontal)
-
-// We use a standard PID controllers (Proportional, Integral derivative controller) for robot stability
-// More info on the project page: How it works page at jjrobots.com
-// We have a PI controller for speed control and a PD controller for stability (robot angle)
-// The output of the control (motors speed) is integrated so it´s really an acceleration not an speed.
-
-// We control the robot from a WIFI module using OSC standard UDP messages
-// You need an OSC app to control de robot (Custom free JJRobots APP for android, and TouchOSC APP for IOS)
-// Join the module Wifi Access Point (by default: JJROBOTS_XX) with your Smartphone/Tablet...
-//   Wifi password: 87654321
-// For TouchOSC users (IOS): Install the BROBOT layout into the OSC app (Touch OSC) and start play! (read the project page)
-// OSC controls:
-//    fader1: Throttle (0.0-1.0) OSC message: /1/fader1
-//    fader2: Steering (0.0-1.0) OSC message: /1/fader2
-//    push1: Move servo arm (and robot raiseup) OSC message /1/push1 
-//    if you enable the touchMessage on TouchOSC options, controls return to center automatically when you lift your fingers
-//    PRO mode (PRO button). On PRO mode steering and throttle are more aggressive
-//    PAGE2: PID adjustements [optional][dont touch if you dont know what you are doing...;-) ]
+/**
+ *  Self-balancing RC-Robot
+ *  
+ *  Mick K, 08-05-2026
+ *
+ *  Based on:
+ *  BROBOT EVO 2 by JJROBOTS Version: 2.82
+ *  Author: JJROBOTS.COM
+ *  Date: 02/09/2014
+ *  Updated: 25/06/2017
+ */
 
 #include <Wire.h>
 
-// NORMAL MODE PARAMETERS (MAXIMUN SETTINGS)
+// NORMAL MODE PARAMETERS (MAXIMUM SETTINGS)
 #define MAX_THROTTLE 550
 #define MAX_STEERING 140
 #define MAX_TARGET_ANGLE 14
 
-// PRO MODE = MORE AGGRESSIVE (MAXIMUN SETTINGS)
-#define MAX_THROTTLE_PRO 780   // Max recommended value: 860
-#define MAX_STEERING_PRO 260   // Max recommended value: 280
+// PRO MODE = MORE AGGRESSIVE (MAXIMUM SETTINGS)
+#define MAX_THROTTLE_PRO 780      // Max recommended value: 860
+#define MAX_STEERING_PRO 260      // Max recommended value: 280
 #define MAX_TARGET_ANGLE_PRO 26   // Max recommended value: 32
 
 // Default control terms for EVO 2
@@ -65,7 +31,7 @@
 #define KD_POSITION 0.45  
 //#define KI_POSITION 0.02
 
-// Control gains for raiseup (the raiseup movement requiere special control parameters)
+// Control gains for raiseup (the raiseup movement require special control parameters)
 #define KP_RAISEUP 0.1   
 #define KD_RAISEUP 0.16   
 #define KP_THROTTLE_RAISEUP 0      // No speed control on raiseup
@@ -86,7 +52,7 @@
 #define SERVO2_RANGE 1400
 
 #define ZERO_SPEED 65535
-#define MAX_ACCEL 14          // Maximun motor acceleration (MAX RECOMMENDED VALUE: 20) (default:14)
+#define MAX_ACCEL 14          // Maximum motor acceleration (MAX RECOMMENDED VALUE: 20) (default:14)
 
 #define MICROSTEPPING 16      // 8 or 16 for 1/8 or 1/16 driver microstepping (default:16) A4988, all MS pins high.
 
@@ -99,7 +65,7 @@
 #define RAD2GRAD 57.2957795
 #define GRAD2RAD 0.01745329251994329576923690768489
 
-// Pins
+// Pins (Teensy 2.0, Arduino Leonardo Clone)
 #define ENABLE_MOTORS 4
 
 #define STEP_M1 11          // B7
@@ -119,7 +85,6 @@
 uint8_t cascade_control_loop_counter = 0;
 uint8_t loop_counter;           // To generate a medium loop 40Hz
 uint8_t slow_loop_counter;      // slow loop 2Hz
-int16_t BatteryValue;
 
 long timer_old;
 long timer_value;
@@ -166,17 +131,13 @@ int16_t motor1;
 int16_t motor2;
 
 // position control
-volatile int32_t steps1;
-volatile int32_t steps2;
-int32_t target_steps1;
-int32_t target_steps2;
-int16_t motor1_control;
-int16_t motor2_control;
+volatile int32_t steps1, steps2;
+int32_t target_steps1, target_steps2;
+int16_t motor1_control, motor2_control;
 
 int16_t speed_M1, speed_M2;        // Actual speed of motors
-int8_t  dir_M1, dir_M2;            // Actual direction of steppers motors
+volatile int8_t  dir_M1, dir_M2;   // Actual direction of steppers motors
 int16_t actual_robot_speed;        // overall robot speed (measured from steppers speed)
-int16_t actual_robot_speed_Old;
 float estimated_speed_filtered;    // Estimated robot speed
 
 // OSC output variables

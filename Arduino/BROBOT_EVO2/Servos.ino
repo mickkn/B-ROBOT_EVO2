@@ -13,11 +13,6 @@
 #define SERVO2_MIN_PULSEWIDTH 700
 #define SERVO2_MAX_PULSEWIDTH 2300
 
-
-#define BATT_VOLT_FACTOR 8
-
-int battery;
-
 // Init servo on T4 timer. Output OC4B (Leonardo Pin10)
 // We configure the Timer4 for 11 bits PWM (enhacend precision) and 16.3ms period (OK for most servos)
 // Resolution: 8us per step (this is OK for servos, around 175 steps for typical servo)
@@ -72,16 +67,6 @@ void BROBOT_moveServo2(int pwm)
   TC4H = pwm>>8;
   OCR4A = pwm & 0xFF;  // 2.0 or 2.3  boards servo2 output
   OCR4D = pwm & 0xFF;  // 2.1 or 2.4  boards servo2 output
-}
-
-// output : Battery voltage*10 (aprox) and noise filtered
-int BROBOT_readBattery(bool first_time)
-{
-  if (first_time)
-	battery = analogRead(5)/BATT_VOLT_FACTOR;
-  else
-    battery = (battery*9 + (analogRead(5)/BATT_VOLT_FACTOR))/10;
-  return battery;
 }
 
 
