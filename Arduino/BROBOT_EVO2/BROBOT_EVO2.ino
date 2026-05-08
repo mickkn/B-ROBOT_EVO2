@@ -57,7 +57,7 @@
 
 #define MICROSTEPPING 16      // 8 or 16 for 1/8 or 1/16 driver microstepping (default:16) A4988, all MS pins high.
 
-#define DEBUG 1               // 0 = No debug info (default) DEBUG 1 for console output
+#define DEBUG 0               // 0 = No debug info (default) DEBUG 1 for console output
 #define DEBUG_MPU 0
 
 // AUX definitions
@@ -152,6 +152,17 @@ float estimated_speed_filtered;    // Estimated robot speed
 float OSCfader[4];
 uint8_t OSCpush[4];
 uint8_t OSCmove_mode;
+bool startupLogPrinted = false;
+
+void printStartupBanner()
+{
+    Serial.println(F(""));
+    Serial.println(F("========================================"));
+    Serial.println(F("  BROBOT EVO2 RC - Startup"));
+    Serial.println(F("========================================"));
+    Serial.println(F("[INFO] Firmware: R-ROBOTS by Mick K"));
+    startupLogPrinted = true;
+}
 
 /**
  * @brief    Arduino setup function. It is called once at the beginning of the program.
@@ -173,15 +184,23 @@ void setup()
 
     Serial.begin(115200); // Serial output to console
 
+    // Leonardo uses native USB; wait briefly so startup logs are not missed.
+    uint32_t serialWaitStart = millis();
+    while (!Serial && (millis() - serialWaitStart < 2000))
+    {
+    }
+    if (Serial)
+        printStartupBanner();
+
     PWM_init();
-    Serial.println("RC PWM input init");
+    Serial.println(F("[OK] RC PWM input initialized"));
 
     // Initialize I2C bus (MPU6050 is connected via I2C)
     Wire.begin();
 
-    Serial.println("R-ROBOTS by Mick K");
+    Serial.println(F("[OK] I2C bus initialized"));
     delay(200);
-    Serial.println("Don't move for 10 sec...");
+    Serial.println(F("[INFO] Hold robot still: IMU warmup/calibration..."));
 
 #if DEBUG > 0
     delay(9000);
@@ -195,12 +214,12 @@ void setup()
     MPU6050_calibrate();
 
     // Init servos
-    Serial.println("Servo init");
+    Serial.println(F("[INIT] Servos"));
     BROBOT_initServo();
     BROBOT_moveServo1(SERVO_AUX_NEUTRO);
 
     // STEPPER MOTORS INITIALIZATION
-    Serial.println("Steppers init");
+    Serial.println(F("[INIT] Stepper drivers/timers"));
     // MOTOR1 => TIMER1
     TCCR1A = 0;                            // Timer1 CTC mode 4, OCxA,B outputs disconnected
     TCCR1B = (1 << WGM12) | (1 << CS11);  // Prescaler=8, => 2Mhz
@@ -241,8 +260,8 @@ void setup()
     BROBOT_moveServo1(SERVO_AUX_NEUTRO);
     BROBOT_moveServo2(SERVO2_NEUTRO);
 
-    Serial.println("BROBOT by JJROBOTS v2.82");
-    Serial.println("Start...");
+    Serial.println(F("[OK] Calibration complete"));
+    Serial.println(F("[READY] Control loop started"));
     timer_old = micros();
 }
 
@@ -254,6 +273,10 @@ void setup()
  */
 void loop()
 {
+    // If host opens Serial Monitor after boot, print startup header once when it becomes available.
+    if (!startupLogPrinted && Serial)
+        printStartupBanner();
+
     // We read the timer at the beginning of the loop to have a more accurate dt for the control loop.
     timer_value = micros();
 

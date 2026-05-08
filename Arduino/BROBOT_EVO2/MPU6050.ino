@@ -522,9 +522,10 @@ void MPU6050_calibrate()
     bool gyro_cal_ok = false;
 
     delay(500);
+    Serial.println(F("[INIT] IMU gyro calibration"));
     while (!gyro_cal_ok)
     {
-        Serial.println("Gyro calibration... DONT MOVE!");
+        Serial.println(F("[INFO] Keep robot still..."));
         // we take 100 measurements in 4 seconds
         for (i = 0; i < 100; i++)
         {
@@ -540,18 +541,19 @@ void MPU6050_calibrate()
         for (i = 0; i < 100; i++)
             dev += (values[i] - value) * (values[i] - value);
         dev = sqrt((1 / 100.0) * dev);
-        Serial.print("offset: ");
+        Serial.print(F("[INFO] Gyro offset: "));
         Serial.print(value);
-        Serial.print("  stddev: ");
+        Serial.print(F("  stddev: "));
         Serial.println(dev);
         if (dev < 50.0)
             gyro_cal_ok = true;
         else
-            Serial.println("Repeat, DONT MOVE!");
+            Serial.println(F("[WARN] Calibration unstable, retrying..."));
     }
     x_gyro_offset = value;
     // Take the first reading of angle from accels
     angle = atan2f((float)accel_t_gyro.value.y_accel, (float)accel_t_gyro.value.z_accel) * RAD2GRAD;
+    Serial.println(F("[OK] IMU gyro calibration complete"));
 }
 
 /**
@@ -565,9 +567,9 @@ void MPU6050_setup()
     uint8_t c;
 
     error = MPU6050_read(MPU6050_WHO_AM_I, &c, 1);
-    Serial.print("WHO_AM_I : ");
+    Serial.print(F("[INIT] MPU6050 WHO_AM_I=0x"));
     Serial.print(c, HEX);
-    Serial.print(", error = ");
+    Serial.print(F(" readErr="));
     Serial.println(error, DEC);
 
     // RESET chip
@@ -607,7 +609,7 @@ void MPU6050_read_3axis()
     error = MPU6050_read(MPU6050_ACCEL_XOUT_H, (uint8_t *) &accel_t_gyro, sizeof(accel_t_gyro));
     if (error != 0)
     {
-        Serial.print("MPU6050 Error:");
+        Serial.print(F("[ERR] MPU6050 read_3axis: "));
         Serial.println(error);
     }
     // swap bytes
@@ -653,14 +655,14 @@ void MPU6050_read_1axis()
     error = MPU6050_read(MPU6050_ACCEL_XOUT_H, (uint8_t *) &accel_t_gyro.reg.x_accel_h, 6);
     if (error != 0)
     {
-        Serial.print("MPU6050 Error:");
+        Serial.print(F("[ERR] MPU6050 read_1axis(accel): "));
         Serial.println(error);
     }
     // read X gyro
     error = MPU6050_read(MPU6050_GYRO_XOUT_H, (uint8_t *) &accel_t_gyro.reg.x_gyro_h, 2);
     if (error != 0)
     {
-        Serial.print("MPU6050 Error:");
+        Serial.print(F("[ERR] MPU6050 read_1axis(gyro): "));
         Serial.println(error);
     }
     SWAP(accel_t_gyro.reg.x_accel_h, accel_t_gyro.reg.y_accel_l);
@@ -686,7 +688,7 @@ bool MPU6050_newData()
     error = MPU6050_read(MPU6050_INT_STATUS, &status, 1);
     if (error != 0)
     {
-        Serial.print("MPU6050 Error:");
+        Serial.print(F("[ERR] MPU6050 INT_STATUS read: "));
         Serial.println(error);
     }
     if (status & (0b00000001)) // Data ready?
