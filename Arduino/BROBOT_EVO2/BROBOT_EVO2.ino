@@ -83,9 +83,12 @@
 #define DIR_M2_PORT PORTC
 #define DIR_M2_PIN 6
 
-#define PWM_CH1 10          // B6
-#define PWM_CH2 1           // D3
-#define PWM_CH3 0           // D2
+#define SERVO1_PIN 10       // B6
+#define SERVO2_PIN 13       // C7
+
+#define PWM_CH1 1           // D3 (INT3)
+#define PWM_CH2 0           // D2 (INT2)
+#define PWM_CH3 7           // E6 (INT6)
 
 uint8_t cascade_control_loop_counter = 0;
 uint8_t loop_counter;           // To generate a medium loop 40Hz
@@ -161,11 +164,17 @@ void setup()
     pinMode(DIR_M1, OUTPUT);            // DIR MOTOR 1
     pinMode(STEP_M2, OUTPUT);           // STEP MOTOR 2
     pinMode(DIR_M2, OUTPUT);            // DIR MOTOR 2
-    digitalWrite(ENABLE_MOTORS, HIGH);  // Disable motors     - Teensy D4
-    pinMode(10, OUTPUT);                // Servo1 (arm)         - Teensy B6
-    pinMode(13, OUTPUT);                // Servo2
+    digitalWrite(ENABLE_MOTORS, HIGH);  // Disable motors
+    pinMode(SERVO1_PIN, OUTPUT);        // Servo1 (arm)
+    pinMode(SERVO2_PIN, OUTPUT);        // Servo2 (not wired)
+    pinMode(PWM_CH1, INPUT);            // PWM input from RC receiver channel 1 (throttle)
+    pinMode(PWM_CH2, INPUT);            // PWM input from RC receiver channel 2 (steering)
+    pinMode(PWM_CH3, INPUT);            // PWM input from RC receiver channel 3 (mode switch and arm control)
 
     Serial.begin(115200); // Serial output to console
+
+    PWM_init();
+    Serial.println("RC PWM input init");
 
     // Initialize I2C bus (MPU6050 is connected via I2C)
     Wire.begin();
@@ -293,6 +302,8 @@ void loop()
             imuCount = 0;
             lastDebug = millis();
         }
+
+        PWM_debugPrint(100);
 #endif
 
         // We calculate the estimated robot speed:
