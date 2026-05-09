@@ -18,14 +18,14 @@
 float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float Ki, bool integrate = true);
 
 // NORMAL MODE PARAMETERS (MAXIMUM SETTINGS)
-#define MAX_THROTTLE 550
-#define MAX_STEERING 140
-#define MAX_TARGET_ANGLE 14
+#define MAX_THROTTLE 400          // Reduced for heavier 18650 pack (was 550)
+#define MAX_STEERING 120
+#define MAX_TARGET_ANGLE 12       // Reduced for heavier 18650 pack (was 14)
 
 // PRO MODE = MORE AGGRESSIVE (MAXIMUM SETTINGS)
-#define MAX_THROTTLE_PRO 780      // Max recommended value: 860
-#define MAX_STEERING_PRO 260      // Max recommended value: 280
-#define MAX_TARGET_ANGLE_PRO 23   // Max recommended value: 32
+#define MAX_THROTTLE_PRO 550      // Reduced for heavier 18650 pack (was 780)
+#define MAX_STEERING_PRO 240      // Max recommended value: 280
+#define MAX_TARGET_ANGLE_PRO 16   // Reduced for heavier 18650 pack (was 18)
 
 // Fall detection / raise-up thresholds.
 // Use balance error (actual angle relative to target_angle) rather than raw angle alone,
@@ -448,6 +448,7 @@ void loop()
         //    input: robot target angle(from SPEED CONTROL), variable: robot angle, output: Motor speed
         //    We integrate the output (sumatory), so the output is really the motor acceleration, not motor speed.
         control_output += stabilityPDControl(dt, angle_adjusted, target_angle, Kp, Kd);
+
         control_output = constrain(control_output, -MAX_CONTROL_OUTPUT, MAX_CONTROL_OUTPUT); // Limit max output from control
 
         // The steering part from the user is injected directly to the output
