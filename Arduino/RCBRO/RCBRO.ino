@@ -76,7 +76,7 @@
 #define DIR_M1_PORT PORTB
 #define DIR_M1_PIN 4
 
-#define STEP_M2 12          // D6
+#define STEP_M2 12          // D6 - Also LED.
 #define STEP_M2_PORT PORTD
 #define STEP_M2_PIN 6
 #define DIR_M2  5           // C6
