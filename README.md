@@ -1,10 +1,6 @@
 # RCBRO - RC Based Self Balancing Robot
 
----
-
 Based on this project: https://github.com/jjrobots/B-ROBOT_EVO2
-
----
 
 # Introduction
 RCBRO is a Radio Control Based Self Balancing Robot. It is a two-wheeled robot that can balance itself using a 
