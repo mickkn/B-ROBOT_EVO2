@@ -168,6 +168,12 @@ bool startupLogPrinted = false;
 uint16_t rc_ch3_us = 1500;
 bool rc_ch3_wasLow = false;
 
+/**
+ * @brief     Function to print the startup banner and firmware information to the Serial console.
+              This function is called once during the setup() function after the Serial connection is
+              established. It prints a header with the firmware version and author information, and
+              sets a flag to indicate that the startup log has been printed.
+ */
 void printStartupBanner()
 {
     Serial.println(F(""));

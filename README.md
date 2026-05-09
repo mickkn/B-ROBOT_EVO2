@@ -39,6 +39,17 @@ Newer versions of the transmitter has to be tweaked a little to be able to bind 
 - **~1500 µs** — Normal operation
 - **≥ 1800 µs** — Activate servo arm
 
+### CH3 Configuration
+To configure CH3 for the desired functions (ARM and Pro-mode toggler).
+
+Check the manual for more details: [FlySky FS-GT3B Custom Firmware Manual](RC/gt3b_fw_manual.pdf)
+
+1. Choose REV and Long press the ENTER button.
+2. Choose 3 CH3
+3. Behavior: BMO (Behavior Mode - Momentary)
+4. Reverse: RE0 (Reverse Off)
+5. Previous Value: PV0 - No change in function
+
 ## Tuning
 
 Key parameters in `RCBRO.ino` to tune for your build:
