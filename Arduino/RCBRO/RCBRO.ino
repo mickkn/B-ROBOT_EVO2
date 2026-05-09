@@ -27,9 +27,7 @@ float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float 
 #define MAX_STEERING_PRO 240      // Max recommended value: 280
 #define MAX_TARGET_ANGLE_PRO 16   // Reduced for heavier 18650 pack (was 18)
 
-// Fall detection / raise-up thresholds.
-// Use balance error (actual angle relative to target_angle) rather than raw angle alone,
-// so intentional lean at speed in PRO mode does not look like a fall.
+// Fall detection / raise-up thresholds
 #define FALL_ANGLE_NORMAL 74
 #define FALL_ANGLE_PRO 82
 #define FALL_ANGLE_HARD 86
@@ -63,7 +61,6 @@ float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float 
 #define SERVO_MAX_PULSEWIDTH 2500
 
 #define SERVO2_NEUTRO 1500
-#define SERVO2_RANGE 1400
 
 #define ZERO_SPEED 65535
 #define MAX_ACCEL 14          // Maximum motor acceleration (MAX RECOMMENDED VALUE: 20) (default:14)
@@ -122,7 +119,6 @@ float Kp_thr_user = KP_THROTTLE;
 float Ki_thr_user = KI_THROTTLE;
 float Kp_position = KP_POSITION;
 float Kd_position = KD_POSITION;
-bool newControlParameters = false;
 float PID_errorSum;
 float PID_errorOld = 0;
 float setPointOld = 0;
@@ -151,7 +147,7 @@ float applyExpo(float input, float expo)
 }
 
 boolean positionControlMode = false;
-uint8_t mode;  // mode = 0 Normal mode, mode = 1 Pro mode (More agressive)
+uint8_t mode = 0;  // mode = 0 Normal mode, mode = 1 Pro mode (More agressive)
 
 int16_t motor1;
 int16_t motor2;
@@ -380,6 +376,7 @@ void loop()
                     max_target_angle = MAX_TARGET_ANGLE_PRO;
                     Kp_user          = KP;
                     Kd_user          = KD;
+                    Serial.println(F("[MODE] PRO"));
                 }
                 else
                 {
@@ -388,6 +385,7 @@ void loop()
                     max_target_angle = MAX_TARGET_ANGLE;
                     Kp_user          = KP;
                     Kd_user          = KD;
+                    Serial.println(F("[MODE] NORMAL"));
                 }
             }
             rc_ch3_wasLow = ch3IsLow;
@@ -480,6 +478,7 @@ void loop()
             setMotorSpeed(1, 0);
             setMotorSpeed(2, 0);
             PID_errorSum = 0;  // Reset PID I term
+            control_output = 0;  // Reset stability integrator
             Kp = KP_RAISEUP;   // CONTROL GAINS FOR RAISE UP
             Kd = KD_RAISEUP;
             Kp_thr = KP_THROTTLE_RAISEUP;

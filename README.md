@@ -25,3 +25,32 @@ The transmitter is flashed with [Custom Firmare 0.6.1](https://github.com/semera
 The custom firmware also allows for the use of additional channels, which can be used for controlling additional features of the robot.
 
 Newer versions of the transmitter has to be tweaked a little to be able to bind with the receiver. Check the RC folder for more details.
+
+## RC Channel Mapping
+
+| Channel | Pin (Teensy 2.0) | Function                      |
+|---------|------------------|-------------------------------|
+| CH1     | D3 (INT3)        | Steering                      |
+| CH2     | D2 (INT2)        | Throttle                      |
+| CH3     | E6 (INT6)        | ARM (high) / PRO toggle (low) |
+
+### CH3 functions
+- **≤ 1200 µs** — Toggle PRO mode on/off (edge triggered)
+- **~1500 µs** — Normal operation
+- **≥ 1800 µs** — Activate servo arm
+
+## Tuning
+
+Key parameters in `RCBRO.ino` to tune for your build:
+
+| Parameter                         | Description                    | Adjust if...                                          |
+|-----------------------------------|--------------------------------|-------------------------------------------------------|
+| `MAX_THROTTLE`                    | Max speed in normal mode       | Robot tips at full speed → lower it                   |
+| `MAX_TARGET_ANGLE`                | Max lean in normal mode        | Robot tips at full speed → lower it                   |
+| `MAX_THROTTLE_PRO`                | Max speed in PRO mode          | Same as above, for PRO                                |
+| `MAX_TARGET_ANGLE_PRO`            | Max lean in PRO mode           | Same as above, for PRO                                |
+| `ANGLE_OFFSET`                    | Balance trim                   | Robot drifts forward/backward at rest                 |
+| `KP` / `KD`                       | Balance PD gains               | Robot oscillates (lower) or sluggish (raise)          |
+| `KP_THROTTLE` / `KI_THROTTLE`     | Speed PI gains                 | Speed response too slow / too aggressive              |
+| `MAX_ACCEL`                       | Motor acceleration limit       | Motors skip steps (lower) or response is slow (raise) |
+| `EXPO_STEERING` / `EXPO_THROTTLE` | Stick expo (0=linear, 1=cubic) | Centre feel too twitchy or too soft                   |

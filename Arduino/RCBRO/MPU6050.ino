@@ -429,9 +429,8 @@
 // Default I2C address for the MPU-6050 is 0x68.
 #define MPU6050_I2C_ADDRESS 0x68
 
-// Util function to swap byte values
-uint8_t swap;
-#define SWAP(x,y) swap = x; x = y; y = swap
+// Util macro to swap byte values (uses local temp to avoid global state)
+#define SWAP(x,y) do { uint8_t _sw = (x); (x) = (y); (y) = _sw; } while(0)
 
 // Declaring an union for the registers and the axis values.
 // The byte order does not match the byte order of
@@ -525,6 +524,7 @@ void MPU6050_calibrate()
     Serial.println(F("[INIT] IMU gyro calibration"));
     while (!gyro_cal_ok)
     {
+        value = 0;  // Reset for each calibration attempt
         Serial.println(F("[INFO] Keep robot still..."));
         // we take 100 measurements in 4 seconds
         for (i = 0; i < 100; i++)
