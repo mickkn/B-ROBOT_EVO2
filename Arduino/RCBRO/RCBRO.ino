@@ -68,7 +68,6 @@ float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float 
 #define CLR(x,y) (x&=(~(1<<y)))
 #define SET(x,y) (x|=(1<<y))
 #define RAD2GRAD 57.2957795
-#define GRAD2RAD 0.01745329251994329576923690768489
 
 // Pins (Teensy 2.0, Arduino Leonardo Clone)
 #define ENABLE_MOTORS 4
@@ -115,12 +114,8 @@ float Ki_thr_user = KI_THROTTLE;
 float Kp_position = KP_POSITION;
 float Kd_position = KD_POSITION;
 bool newControlParameters = false;
-bool modifing_control_parameters = false;
-int16_t position_error_sum_M1;
-int16_t position_error_sum_M2;
 float PID_errorSum;
 float PID_errorOld = 0;
-float PID_errorOld2 = 0;
 float setPointOld = 0;
 float target_angle;
 int16_t throttle;
@@ -162,10 +157,7 @@ volatile int8_t dir_M1, dir_M2;    // Actual direction of steppers motors
 int16_t actual_robot_speed;        // overall robot speed (measured from steppers speed)
 float estimated_speed_filtered;    // Estimated robot speed
 
-// OSC output variables
-float OSCfader[4];
-uint8_t OSCpush[4];
-uint8_t OSCmove_mode;
+// OSC output variables (kept for potential future use)
 bool startupLogPrinted = false;
 
 uint16_t rc_ch3_us = 1500;
@@ -394,6 +386,7 @@ void loop()
             if (abs((int)ch2 - 1500) < 30) ch2 = 1500;
 
             // CH1 = steering, CH2 = throttle
+            // Clamp and map from PWM input range (1000-2000 us) to control output range (-max, max)
             steering = map(ch1, 1000, 2000, -max_steering, max_steering);
             throttle = map(ch2, 1000, 2000, -max_throttle, max_throttle);
 
@@ -417,12 +410,16 @@ void loop()
 
         // ROBOT SPEED CONTROL: This is a PI controller.
         //    input:user throttle(robot speed), variable: estimated robot speed, output: target robot angle to get the desired speed
-        //    Anti-windup: clamped integration — freeze the I-term when the output was saturated
-        //    last tick. This stops PID_errorSum charging up during sustained full throttle,
-        //    which was the root cause of the robot falling forward after a few seconds in PRO mode.
+        //    Anti-windup: freeze the speed I-term when either:
+        //      1) speed loop output (target_angle) was saturated, or
+        //      2) inner balance loop is near motor authority limit.
+        //    This avoids runaway at high speed where more I-term cannot produce more wheel torque.
         {
             static bool speed_pi_saturated = false;
-            target_angle = speedPIControl(dt, estimated_speed_filtered, throttle, Kp_thr, Ki_thr, !speed_pi_saturated);
+            bool balance_loop_saturated = (abs((int)control_output) > (MAX_CONTROL_OUTPUT - 40));
+            bool allow_speed_i = (!speed_pi_saturated) && (!balance_loop_saturated);
+
+            target_angle = speedPIControl(dt, estimated_speed_filtered, throttle, Kp_thr, Ki_thr, allow_speed_i);
             float target_angle_clamped = constrain(target_angle, -max_target_angle, max_target_angle);
             speed_pi_saturated = (target_angle != target_angle_clamped);
             target_angle = target_angle_clamped;
@@ -477,7 +474,6 @@ void loop()
             steps1 = 0;
             steps2 = 0;
             positionControlMode = false;
-            OSCmove_mode = false;
             throttle = 0;
             steering = 0;
         }
@@ -494,8 +490,8 @@ void loop()
         else
             BROBOT_moveServo1(SERVO_AUX_NEUTRO);
 
-        // Servo2
-        BROBOT_moveServo2(SERVO2_NEUTRO + (OSCfader[2] - 0.5) * SERVO2_RANGE);
+        // Servo2 - hold at neutral (no RC channel assigned yet)
+        BROBOT_moveServo2(SERVO2_NEUTRO);
 
         // Normal condition?
         if ((angle_adjusted < 56) && (angle_adjusted > -56))

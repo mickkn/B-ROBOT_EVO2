@@ -643,38 +643,6 @@ void MPU6050_read_3axis()
     */
 }
 
-/**
- * @brief Read the X axis values of the accelerometer and the gyro, and the temperature value.
- *        The values are stored in the global variable "accel_t_gyro".
- */
-void MPU6050_read_1axis()
-{
-    int error;
-
-    // read X accel
-    error = MPU6050_read(MPU6050_ACCEL_XOUT_H, (uint8_t *) &accel_t_gyro.reg.x_accel_h, 6);
-    if (error != 0)
-    {
-        Serial.print(F("[ERR] MPU6050 read_1axis(accel): "));
-        Serial.println(error);
-    }
-    // read X gyro
-    error = MPU6050_read(MPU6050_GYRO_XOUT_H, (uint8_t *) &accel_t_gyro.reg.x_gyro_h, 2);
-    if (error != 0)
-    {
-        Serial.print(F("[ERR] MPU6050 read_1axis(gyro): "));
-        Serial.println(error);
-    }
-    SWAP(accel_t_gyro.reg.x_accel_h, accel_t_gyro.reg.y_accel_l);
-    SWAP(accel_t_gyro.reg.z_accel_h, accel_t_gyro.reg.z_accel_l);
-    SWAP(accel_t_gyro.reg.x_gyro_h, accel_t_gyro.reg.x_gyro_l);
-
-    // Print values
-    Serial.print("axis:");
-    Serial.print(accel_t_gyro.value.y_accel, DEC);
-    Serial.print(",");
-    Serial.println(accel_t_gyro.value.x_gyro, DEC);
-}
 
 /**
  * @brief Check if new data is available by reading the INT_STATUS register and checking the Data Ready bit.
