@@ -89,7 +89,7 @@ ISR(TIMER1_COMPA_vect)
         return;
 
     SET(STEP_M1_PORT, STEP_M1_PIN);
-    //asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop");
+    asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop");
     CLR(STEP_M1_PORT, STEP_M1_PIN);
 
     if (dir_M1 > 0)
@@ -109,7 +109,7 @@ ISR(TIMER3_COMPA_vect)
         return;
 
     SET(STEP_M2_PORT, STEP_M2_PIN);
-    //asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop");
+    asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop");
     CLR(STEP_M2_PORT, STEP_M2_PIN);
 
     if (dir_M2 > 0)

@@ -27,6 +27,15 @@ float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float 
 #define MAX_STEERING_PRO 260      // Max recommended value: 280
 #define MAX_TARGET_ANGLE_PRO 26   // Max recommended value: 32
 
+// Fall detection / raise-up thresholds.
+// Use balance error (actual angle relative to target_angle) rather than raw angle alone,
+// so intentional lean at speed in PRO mode does not look like a fall.
+#define FALL_ANGLE_NORMAL 74
+#define FALL_ANGLE_PRO 82
+#define FALL_ANGLE_HARD 86
+#define RAISEUP_ANGLE_NORMAL 56
+#define RAISEUP_ANGLE_PRO 64
+
 // Default control terms for EVO 2
 #define KP 0.32
 #define KD 0.050
@@ -447,12 +456,14 @@ void loop()
         motor1 = constrain(motor1, -MAX_CONTROL_OUTPUT, MAX_CONTROL_OUTPUT);
         motor2 = constrain(motor2, -MAX_CONTROL_OUTPUT, MAX_CONTROL_OUTPUT);
 
-        int angle_ready;
-        if (rc_ch3_us >= 1800)  // If CH3 is high we allow a wider angle before shutting off motors
-            angle_ready = 82;
-        else
-            angle_ready = 74;  // Default angle
-        if ((angle_adjusted < angle_ready) && (angle_adjusted > -angle_ready)) // Is robot ready (upright?)
+        float balance_angle_error = angle_adjusted - target_angle;
+        int angle_ready = (mode == 1) ? FALL_ANGLE_PRO : FALL_ANGLE_NORMAL;
+        if (rc_ch3_us >= 1800)  // Arm active: keep the slightly wider envelope
+            angle_ready = FALL_ANGLE_PRO;
+
+        // Keep motors enabled while the robot stays reasonably close to its commanded lean.
+        // A separate hard stop remains for true near-horizontal falls.
+        if ((abs(balance_angle_error) < angle_ready) && (abs(angle_adjusted) < FALL_ANGLE_HARD))
         {
             // NORMAL MODE
             digitalWrite(ENABLE_MOTORS, LOW);  // Motors enable
@@ -493,8 +504,10 @@ void loop()
         // Servo2 - hold at neutral (no RC channel assigned yet)
         BROBOT_moveServo2(SERVO2_NEUTRO);
 
-        // Normal condition?
-        if ((angle_adjusted < 56) && (angle_adjusted > -56))
+        // Normal condition? Use angle error relative to commanded lean so PRO mode can
+        // stay on the user gains even while intentionally pitched further forward.
+        int raiseup_angle = (mode == 1) ? RAISEUP_ANGLE_PRO : RAISEUP_ANGLE_NORMAL;
+        if ((abs(balance_angle_error) < raiseup_angle) && (abs(angle_adjusted) < FALL_ANGLE_HARD))
         {
             Kp = Kp_user;            // Default user control gains
             Kd = Kd_user;
