@@ -158,9 +158,9 @@ void printStartupBanner()
 {
     Serial.println(F(""));
     Serial.println(F("========================================"));
-    Serial.println(F("  BROBOT EVO2 RC - Startup"));
+    Serial.println(F("  RCBRO - Startup"));
     Serial.println(F("========================================"));
-    Serial.println(F("[INFO] Firmware: R-ROBOTS by Mick K"));
+    Serial.println(F("[INFO] Firmware: RCBRO v1.0.0 by Mick K"));
     startupLogPrinted = true;
 }
 
