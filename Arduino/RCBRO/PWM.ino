@@ -28,7 +28,11 @@ volatile uint8_t pwm_frame_seq = 0;
 #define PWM_ALL_UPDATED (PWM_CH1_UPDATED | PWM_CH2_UPDATED | PWM_CH3_UPDATED)
 
 /**
- * @brief     Function to mark a PWM channel as updated. This function takes a bitmask representing the channel that has been updated and sets the corresponding bit in the global variable pwm_update_mask. It then checks if all channels have been updated (i.e., if the pwm_update_mask has all the bits set for the channels). If all channels have been updated, it resets the pwm_update_mask to 0 and increments the pwm_frame_seq variable, which can be used to track the sequence of PWM frames received.
+ * @brief     Function to mark a PWM channel as updated. This function takes a bitmask representing the channel that
+ *            has been updated and sets the corresponding bit in the global variable pwm_update_mask. It then checks
+ *            if all channels have been updated (i.e., if the pwm_update_mask has all the bits set for the channels).
+ *            If all channels have been updated, it resets the pwm_update_mask to 0 and increments the pwm_frame_seq
+ *            variable, which can be used to track the sequence of PWM frames received.
  * @param     bit The bitmask representing the channel that has been updated (e.g., PWM_CH1_UPDATED, PWM_CH2_UPDATED, or PWM_CH3_UPDATED).
  */
 static inline void PWM_markUpdated(uint8_t bit)
@@ -43,7 +47,11 @@ static inline void PWM_markUpdated(uint8_t bit)
 }
 
 /**
- * @brief     Function to sanitize the pulse width of the PWM signal. This function takes a pulse width value in microseconds and checks if it falls within a reasonable range for RC signals (typically between 900 and 2200 microseconds). If the pulse width is outside this range, it returns a default value of 1500 microseconds (neutral position). This is done to ensure that any glitches or noise in the signal do not cause erratic behavior in the robot.
+ * @brief     Function to sanitize the pulse width of the PWM signal. This function takes a pulse width value in
+ *            microseconds and checks if it falls within a reasonable range for RC signals (typically between 900
+ *            and 2200 microseconds). If the pulse width is outside this range, it returns a default value of 1500
+ *            microseconds (neutral position). This is done to ensure that any glitches or noise in the signal do not
+ *            cause erratic behavior in the robot.
  * @param     pulse   The pulse width value in microseconds to be sanitized.
  * @return    A sanitized pulse width value in microseconds, constrained to a reasonable range for RC signals.
  */
@@ -116,7 +124,11 @@ void PWM_ISR_CH3()
 }
 
 /**
- * @brief     Function to initialize the PWM input handling. This function sets up pin change interrupts for the specified PWM input pins (PWM_CH1, PWM_CH2, and PWM_CH3). Each pin is associated with an interrupt service routine (ISR) that will be called whenever there is a change in the signal on that pin (i.e., when the signal goes from LOW to HIGH or from HIGH to LOW). The ISRs will measure the pulse width of the incoming PWM signals and update the corresponding variables with the latest values.
+ * @brief     Function to initialize the PWM input handling. This function sets up pin change interrupts for the
+ *            specified PWM input pins (PWM_CH1, PWM_CH2, and PWM_CH3). Each pin is associated with an interrupt service
+ *            routine (ISR) that will be called whenever there is a change in the signal on that pin (i.e., when the
+ *            signal goes from LOW to HIGH or from HIGH to LOW). The ISRs will measure the pulse width of the incoming
+ *            PWM signals and update the corresponding variables with the latest values.
  */
 void PWM_init()
 {
@@ -130,9 +142,13 @@ void PWM_init()
 }
 
 /**
- * @brief     Function to get the latest PWM value for a specific channel. The function takes a channel number (1, 2, or 3) as input and returns the corresponding PWM value in microseconds. The function disables interrupts while reading the shared variables to ensure that it gets a consistent value without being interrupted by the ISR that updates these variables.
+ * @brief     Function to get the latest PWM value for a specific channel. The function takes a channel number (1, 2,
+ *            or 3) as input and returns the corresponding PWM value in microseconds. The function disables interrupts
+ *            while reading the shared variables to ensure that it gets a consistent value without being interrupted by
+ *            the ISR that updates these variables.
  * @param     channel Channel number (1, 2, or 3) for which to get the PWM value.
- * @return    The latest PWM value for the specified channel in microseconds. If an invalid channel number is provided, it returns a default value of 1500 microseconds.
+ * @return    The latest PWM value for the specified channel in microseconds. If an invalid channel number is provided,
+ *            it returns a default value of 1500 microseconds.
  */
 uint16_t PWM_getChannelUs(uint8_t channel)
 {
@@ -151,7 +167,11 @@ uint16_t PWM_getChannelUs(uint8_t channel)
 }
 
 /**
- * @brief     Function to consume the latest PWM frame values for all channels. The function reads the current PWM values for channels 1, 2, and 3, and checks if they have been updated since the last time this function was called. If the values have not been updated (i.e., the sequence number has not changed), the function returns false, indicating that there is no new frame to consume. If the values have been updated, it updates the last sequence number and returns true, indicating that new frame data has been consumed.
+ * @brief     Function to consume the latest PWM frame values for all channels. The function reads the current PWM values
+ *            for channels 1, 2, and 3, and checks if they have been updated since the last time this function was called.
+ *            If the values have not been updated (i.e., the sequence number has not changed), the function returns false,
+ *            indicating that there is no new frame to consume. If the values have been updated, it updates the last sequence
+ *            number and returns true, indicating that new frame data has been consumed.
  * @param     ch1 Reference variable to store the latest PWM value for channel 1 (in microseconds).
  * @param     ch2 Reference variable to store the latest PWM value for channel 2 (in microseconds).
  * @param     ch3 Reference variable to store the latest PWM value for channel 3 (in microseconds).
@@ -177,8 +197,11 @@ bool PWM_consumeLatestFrame(uint16_t &ch1, uint16_t &ch2, uint16_t &ch3)
 }
 
 /**
- * @brief     Debug function to print the latest PWM channel values to the serial console. The function uses a static variable to track the last time it printed, and only prints if the specified period has elapsed since the last print. This allows for rate-limited debug output while still consuming the latest PWM frame data.
- * @param     period_ms  Minimum period (in milliseconds) between consecutive prints to the console. If the function is called more frequently than this period, it will skip printing until the period has elapsed.
+ * @brief     Debug function to print the latest PWM channel values to the serial console. The function uses a
+ *            static variable to track the last time it printed, and only prints if the specified period has elapsed
+ *            since the last print. This allows for rate-limited debug output while still consuming the latest PWM frame data.
+ * @param     period_ms  Minimum period (in milliseconds) between consecutive prints to the console. If the function
+ *            is called more frequently than this period, it will skip printing until the period has elapsed.
  */
 void PWM_debugPrint(uint16_t period_ms)
 {
@@ -196,7 +219,6 @@ void PWM_debugPrint(uint16_t period_ms)
         return;
 
     last_print = now_ms;
-
 
     Serial.print("RC us | CH1:");
     Serial.print(ch1);

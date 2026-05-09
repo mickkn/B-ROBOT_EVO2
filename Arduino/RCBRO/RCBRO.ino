@@ -25,7 +25,7 @@ float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float 
 // PRO MODE = MORE AGGRESSIVE (MAXIMUM SETTINGS)
 #define MAX_THROTTLE_PRO 780      // Max recommended value: 860
 #define MAX_STEERING_PRO 260      // Max recommended value: 280
-#define MAX_TARGET_ANGLE_PRO 26   // Max recommended value: 32
+#define MAX_TARGET_ANGLE_PRO 23   // Max recommended value: 32
 
 // Fall detection / raise-up thresholds.
 // Use balance error (actual angle relative to target_angle) rather than raw angle alone,
@@ -345,12 +345,14 @@ void loop()
 #endif
 
         // We calculate the estimated robot speed:
-        // Estimated_Speed = angular_velocity_of_stepper_motors(combined) - angular_velocity_of_robot(angle measured by IMU)
-        actual_robot_speed = (speed_M1 + speed_M2) / 2; // Positive: forward
+        // Estimated robot speed is calculated from the speed of the stepper motors,
+        // which is measured from the time between steps in the TIMER interrupts.
+        // We take the average of both motors as the overall robot speed.
+        actual_robot_speed = (speed_M1 + speed_M2) / 2;
 
-        int16_t angular_velocity = (angle_adjusted - angle_adjusted_Old) * 25.0; // 25 is an empirical extracted factor to adjust for real units
-        int16_t estimated_speed = -actual_robot_speed + angular_velocity;
-        estimated_speed_filtered = estimated_speed_filtered * 0.9 + (float)estimated_speed * 0.1; // low pass filter on estimated speed
+        float angular_velocity = (angle_adjusted - angle_adjusted_Old) * 25.0f;
+        float estimated_speed = -(float)actual_robot_speed + angular_velocity;
+        estimated_speed_filtered = estimated_speed_filtered * 0.9f + estimated_speed * 0.1f;
 
 #if DEBUG==2
         Serial.print(angle_adjusted);
