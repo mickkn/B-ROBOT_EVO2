@@ -1,7 +1,7 @@
 /**
  * @file        PWM.ino
  *
- * @brief       PWM control code for BROBOT EVO 2, the self balance robot with stepper motors by JJROBOTS.
+ * @brief       PWM control code for RCBRO.
  *
  * @details     This file containes the definitions and functions to initialize and receive PWM signals from an
  *              RC receiver, which can be used to control the robot in RC mode. The code uses the Pin Change

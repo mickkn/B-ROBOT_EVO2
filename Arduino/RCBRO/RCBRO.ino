@@ -1,5 +1,5 @@
 /**
- * @file        BROBOT_EVO2.ino
+ * @file        RCBRO.ino
  *
  * @brief       RC Version of BROBOT EVO 2, the self balance robot with stepper motors by JJROBOTS.
  *
