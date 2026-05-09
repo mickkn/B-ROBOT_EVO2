@@ -13,6 +13,10 @@
 
 #include <Wire.h>
 
+// Forward declaration needed because Arduino's auto-prototype generator
+// does not preserve default parameters across .ino files.
+float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float Ki, bool integrate = true);
+
 // NORMAL MODE PARAMETERS (MAXIMUM SETTINGS)
 #define MAX_THROTTLE 550
 #define MAX_STEERING 140
@@ -90,13 +94,8 @@
 #define PWM_CH2 0           // D2 (INT2)
 #define PWM_CH3 7           // E6 (INT6)
 
-uint8_t cascade_control_loop_counter = 0;
-uint8_t loop_counter;           // To generate a medium loop 40Hz
-uint8_t slow_loop_counter;      // slow loop 2Hz
-
 long timer_old;
 long timer_value;
-float debugVariable;
 float dt;
 
 // Angle of the robot (used for stability control)
@@ -132,6 +131,21 @@ float max_target_angle = MAX_TARGET_ANGLE;
 float control_output;
 float angle_offset = ANGLE_OFFSET;
 
+
+// Expo curve factor: 0.0 = linear, 1.0 = full expo (very soft centre)
+#define EXPO_STEERING 0.5f
+#define EXPO_THROTTLE 0.4f
+
+/**
+ * @brief  Apply an exponential curve to a normalised stick input.
+ *         input and output are in the range [-1.0, 1.0].
+ *         expo = 0 -> linear, expo = 1 -> pure cubic (maximum softness around centre).
+ */
+float applyExpo(float input, float expo)
+{
+    return input * (expo * input * input + (1.0f - expo));
+}
+
 boolean positionControlMode = false;
 uint8_t mode;  // mode = 0 Normal mode, mode = 1 Pro mode (More agressive)
 
@@ -153,6 +167,9 @@ float OSCfader[4];
 uint8_t OSCpush[4];
 uint8_t OSCmove_mode;
 bool startupLogPrinted = false;
+
+uint16_t rc_ch3_us = 1500;
+bool rc_ch3_wasLow = false;
 
 void printStartupBanner()
 {
@@ -178,8 +195,8 @@ void setup()
     digitalWrite(ENABLE_MOTORS, HIGH);  // Disable motors
     pinMode(SERVO1_PIN, OUTPUT);        // Servo1 (arm)
     pinMode(SERVO2_PIN, OUTPUT);        // Servo2 (not wired)
-    pinMode(PWM_CH1, INPUT);            // PWM input from RC receiver channel 1 (throttle)
-    pinMode(PWM_CH2, INPUT);            // PWM input from RC receiver channel 2 (steering)
+    pinMode(PWM_CH1, INPUT);            // PWM input from RC receiver channel 1 (steering)
+    pinMode(PWM_CH2, INPUT);            // PWM input from RC receiver channel 2 (throttle)
     pinMode(PWM_CH3, INPUT);            // PWM input from RC receiver channel 3 (mode switch and arm control)
 
     Serial.begin(115200); // Serial output to console
@@ -286,9 +303,6 @@ void loop()
     {
         MPU6050_read_3axis();
 
-        loop_counter++;
-        slow_loop_counter++;
-
         dt = (timer_value - timer_old) * 0.000001; // dt in seconds
         timer_old = timer_value;
 
@@ -343,6 +357,51 @@ void loop()
         Serial.println(estimated_speed_filtered);
 #endif
 
+        // --- RC INPUT (CH1 = steering, CH2 = throttle) ---
+        if (!positionControlMode)
+        {
+            uint16_t ch1 = PWM_getChannelUs(1); // 1000-2000 us, 1500 = neutral
+            uint16_t ch2 = PWM_getChannelUs(2);
+            uint16_t ch3 = PWM_getChannelUs(3); // arm trigger
+            rc_ch3_us = ch3;
+
+            // PRO mode toggle: rising edge of CH3 going LOW (<= 1200 us)
+            bool ch3IsLow = (ch3 <= 1200);
+            if (ch3IsLow && !rc_ch3_wasLow)
+            {
+                mode = (mode == 0) ? 1 : 0; // toggle between normal(0) and pro(1)
+                if (mode == 1)
+                {
+                    max_throttle     = MAX_THROTTLE_PRO;
+                    max_steering     = MAX_STEERING_PRO;
+                    max_target_angle = MAX_TARGET_ANGLE_PRO;
+                    Kp_user          = KP;
+                    Kd_user          = KD;
+                }
+                else
+                {
+                    max_throttle     = MAX_THROTTLE;
+                    max_steering     = MAX_STEERING;
+                    max_target_angle = MAX_TARGET_ANGLE;
+                    Kp_user          = KP;
+                    Kd_user          = KD;
+                }
+            }
+            rc_ch3_wasLow = ch3IsLow;
+
+            // Apply dead-band around neutral (1500 us) to avoid drift
+            if (abs((int)ch1 - 1500) < 30) ch1 = 1500;
+            if (abs((int)ch2 - 1500) < 30) ch2 = 1500;
+
+            // CH1 = steering, CH2 = throttle
+            steering = map(ch1, 1000, 2000, -max_steering, max_steering);
+            throttle = map(ch2, 1000, 2000, -max_throttle, max_throttle);
+
+            // Apply expo curve (soften centre feel)
+            steering = applyExpo(steering / max_steering, EXPO_STEERING) * max_steering;
+            throttle = applyExpo(throttle / max_throttle, EXPO_THROTTLE) * max_throttle;
+        }
+
         if (positionControlMode)
         {
             // POSITION CONTROL. INPUT: Target steps for each motor. Output: motors speed
@@ -358,8 +417,16 @@ void loop()
 
         // ROBOT SPEED CONTROL: This is a PI controller.
         //    input:user throttle(robot speed), variable: estimated robot speed, output: target robot angle to get the desired speed
-        target_angle = speedPIControl(dt, estimated_speed_filtered, throttle, Kp_thr, Ki_thr);
-        target_angle = constrain(target_angle, -max_target_angle, max_target_angle); // limited output
+        //    Anti-windup: clamped integration — freeze the I-term when the output was saturated
+        //    last tick. This stops PID_errorSum charging up during sustained full throttle,
+        //    which was the root cause of the robot falling forward after a few seconds in PRO mode.
+        {
+            static bool speed_pi_saturated = false;
+            target_angle = speedPIControl(dt, estimated_speed_filtered, throttle, Kp_thr, Ki_thr, !speed_pi_saturated);
+            float target_angle_clamped = constrain(target_angle, -max_target_angle, max_target_angle);
+            speed_pi_saturated = (target_angle != target_angle_clamped);
+            target_angle = target_angle_clamped;
+        }
 
 #if DEBUG==3
         Serial.print(angle_adjusted);
@@ -384,7 +451,7 @@ void loop()
         motor2 = constrain(motor2, -MAX_CONTROL_OUTPUT, MAX_CONTROL_OUTPUT);
 
         int angle_ready;
-        if (OSCpush[0])     // If we press the SERVO button we start to move
+        if (rc_ch3_us >= 1800)  // If CH3 is high we allow a wider angle before shutting off motors
             angle_ready = 82;
         else
             angle_ready = 74;  // Default angle
@@ -415,13 +482,14 @@ void loop()
             steering = 0;
         }
 
-        // Push1 Move servo arm
-        if (OSCpush[0])  // Move arm
+        // Servo1 arm: CH3 high (>=1800 us) triggers the arm.
+        // Forward when upright, backward when robot is on its back.
+        if (rc_ch3_us >= 1800)
         {
-            if (angle_adjusted > -40)
-                BROBOT_moveServo1(SERVO_MIN_PULSEWIDTH);
-            else
-                BROBOT_moveServo1(SERVO_MAX_PULSEWIDTH);
+            if (angle_adjusted > -40)   // Upright or tilting forward
+                BROBOT_moveServo1(SERVO_MAX_PULSEWIDTH);  // forward
+            else                        // Laying on its back
+                BROBOT_moveServo1(SERVO_MIN_PULSEWIDTH);  // backward
         }
         else
             BROBOT_moveServo1(SERVO_AUX_NEUTRO);
@@ -446,15 +514,4 @@ void loop()
         }
 
     } // End of new IMU data
-
-    // Medium loop 7.5Hz
-    if (loop_counter >= 15)
-    {
-        loop_counter = 0;
-
-    } // End of medium loop
-    else if (slow_loop_counter >= 100) // 1Hz
-    {
-        slow_loop_counter = 0;
-    }  // End of slow loop
 }

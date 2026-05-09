@@ -48,13 +48,17 @@ float stabilityPDControl(float DT, float input, float setPoint, float Kp, float 
  * @param     setPoint    Desired speed for the robot (from user throttle input).
  * @param     Kp          Proportional gain for the PI controller.
  * @param     Ki          Integral gain for the PI controller.
+ * @param     integrate   If false, the I-term is frozen (anti-windup clamped integration).
  * @return    Target angle for the robot to achieve the desired speed.
  */
-float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float Ki)
+float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float Ki, bool integrate = true)
 {
     int16_t error = setPoint - input;
-    PID_errorSum += constrain(error, -ITERM_MAX_ERROR, ITERM_MAX_ERROR);
-    PID_errorSum = constrain(PID_errorSum, -ITERM_MAX, ITERM_MAX);
+    if (integrate)
+    {
+        PID_errorSum += constrain(error, -ITERM_MAX_ERROR, ITERM_MAX_ERROR);
+        PID_errorSum = constrain(PID_errorSum, -ITERM_MAX, ITERM_MAX);
+    }
 
     return Kp * error + Ki * PID_errorSum * DT;
 }
