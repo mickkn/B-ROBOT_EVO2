@@ -484,7 +484,6 @@ void loop()
             setMotorSpeed(1, 0);
             setMotorSpeed(2, 0);
             PID_errorSum = 0;  // Reset PID I term
-            control_output = 0;  // Reset stability integrator
             Kp = KP_RAISEUP;   // CONTROL GAINS FOR RAISE UP
             Kd = KD_RAISEUP;
             Kp_thr = KP_THROTTLE_RAISEUP;
