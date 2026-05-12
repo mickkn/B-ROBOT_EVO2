@@ -46,19 +46,19 @@ float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float 
 // Control gains for raiseup (the raiseup movement require special control parameters)
 #define KP_RAISEUP 0.1
 #define KD_RAISEUP 0.16
-#define KP_THROTTLE_RAISEUP 0      // No speed control on raiseup
+#define KP_THROTTLE_RAISEUP 0       // No speed control on raiseup
 #define KI_THROTTLE_RAISEUP 0.0
 
 #define MAX_CONTROL_OUTPUT 500
-#define ITERM_MAX_ERROR 30        // Iterm windup constants for PI control
+#define ITERM_MAX_ERROR 30          // Iterm windup constants for PI control
 #define ITERM_MAX 10000
 
-#define ANGLE_OFFSET 0.0          // Offset angle for balance (to compensate robot own weight distribution)
+#define ANGLE_OFFSET 0.0            // Offset angle for balance (to compensate robot own weight distribution)
 
 // Servo definitions
-#define SERVO_AUX_NEUTRO 1500     // Servo neutral position
-#define SERVO_MIN_PULSEWIDTH 700
-#define SERVO_MAX_PULSEWIDTH 2500
+#define SERVO_AUX_NEUTRO 1500       // Servo neutral position
+#define SERVO_MIN_PULSEWIDTH 700    // Minimum pulse width in microsecond for the servo (default: 700)
+#define SERVO_MAX_PULSEWIDTH 2500   // Maximum pulse width in microsecond for the servo (default: 2500)
 
 #define SERVO2_NEUTRO 1500
 
@@ -500,10 +500,17 @@ void loop()
         // Forward when upright, backward when robot is on its back.
         if (rc_ch3_us >= 1800)
         {
-            if (angle_adjusted > -40)   // Upright or tilting forward
-                BROBOT_moveServo1(SERVO_MAX_PULSEWIDTH);  // forward
-            else                        // Laying on its back
-                BROBOT_moveServo1(SERVO_MIN_PULSEWIDTH);  // backward
+            // If the robot is tilted more than 40 degrees,
+            // we consider it is on its back and we move the arm backward to help it raise up.
+            if (angle_adjusted > 40) {
+                BROBOT_moveServo1(SERVO_MAX_PULSEWIDTH);
+            }
+            // If the robot is tilted less than 40 degrees,
+            // we consider it is upright and we move the arm forward to help it balance.
+            else {
+                BROBOT_moveServo1(SERVO_MIN_PULSEWIDTH);
+            }
+
         }
         else
             BROBOT_moveServo1(SERVO_AUX_NEUTRO);
