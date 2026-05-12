@@ -1,10 +1,15 @@
 # RCBRO - RC Based Self Balancing Robot
 
-Based on this project: https://github.com/jjrobots/B-ROBOT_EVO2
+Based on this project:  
+[Github](https://github.com/jjrobots/B-ROBOT_EVO2)  
+[Thingiverse](https://www.thingiverse.com/thing:2306541)
 
 # Introduction
+
+![RCBRO](Img/logo.jpg)
+
 RCBRO is a Radio Control Based Self Balancing Robot. It is a two-wheeled robot that can balance itself using a 
-gyroscope and accelerometer. The robot can be controlled using a remote control, allowing it to move forward, backward, and turn.
+gyroscope and accelerometer. The robot can be controlled using a PWM based RC transmitter, allowing it to move forward, backward, turn and raise.
 
 This project is designed around the Teensy 2.0 board, which feature a ATMega32U4 microcontroller. The Teensy 2.0 is a powerful 
 and versatile microcontroller that is well-suited for robotics projects. It has a built-in USB interface, which allows for 
@@ -15,13 +20,16 @@ The pinout for the Teensy 2.0 board is as follows:
 
 ![Teensy 2.0 pinout](Img/Teensy_pinout.jpg)
 
+PD0 and PD1 are used for the I2C communication with the MPU6050 IMU sensor.
+
 # Transmitter
 
 The RC transmitter used in this project is a 3-channel FlySky FS-GT3B transmitter. It operates on the 2.4GHz 
 frequency and has a range of up to 500 meters. The transmitter has a built-in LCD screen that displays the current 
 channel and battery status.
 
-The transmitter is flashed with [Custom Firmare 0.6.1](https://github.com/semerad/gt3b/tree/master), which allows for better control and customization of the transmitter. 
+The transmitter is flashed with [Custom Firmare 0.6.1](https://github.com/semerad/gt3b/tree/master) (or [0.6.2](RC)), which allows 
+for better control and customization of the transmitter. 
 The custom firmware also allows for the use of additional channels, which can be used for controlling additional features of the robot.
 
 Newer versions of the transmitter has to be tweaked a little to be able to bind with the receiver. Check the RC folder for more details.
@@ -65,3 +73,9 @@ Key parameters in `RCBRO.ino` to tune for your build:
 | `KP_THROTTLE` / `KI_THROTTLE`     | Speed PI gains                 | Speed response too slow / too aggressive              |
 | `MAX_ACCEL`                       | Motor acceleration limit       | Motors skip steps (lower) or response is slow (raise) |
 | `EXPO_STEERING` / `EXPO_THROTTLE` | Stick expo (0=linear, 1=cubic) | Centre feel too twitchy or too soft                   |
+
+# Ideas
+
+Use it for speed, fighting or whatever you want.
+
+![Ideas](Img/ideas.jpg)
