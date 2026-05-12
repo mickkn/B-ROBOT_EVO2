@@ -28,11 +28,10 @@ float speedPIControl(float DT, int16_t input, int16_t setPoint, float Kp, float 
 #define MAX_TARGET_ANGLE_PRO 16   // Reduced for heavier 18650 pack (was 18)
 
 // Fall detection / raise-up thresholds
-#define FALL_ANGLE_NORMAL 74
-#define FALL_ANGLE_PRO 82
-#define FALL_ANGLE_HARD 86
-#define RAISEUP_ANGLE_NORMAL 56
-#define RAISEUP_ANGLE_PRO 64
+#define FALL_ANGLE 74
+#define RAISEUP_ANGLE 56
+
+#define SERVO_ARM_FLIP_ANGLE 40    // Angle threshold before the arm movement is reversed.
 
 // Default control terms for EVO 2
 #define KP 0.32
@@ -463,14 +462,9 @@ void loop()
         motor1 = constrain(motor1, -MAX_CONTROL_OUTPUT, MAX_CONTROL_OUTPUT);
         motor2 = constrain(motor2, -MAX_CONTROL_OUTPUT, MAX_CONTROL_OUTPUT);
 
-        float balance_angle_error = angle_adjusted - target_angle;
-        int angle_ready = (mode == 1) ? FALL_ANGLE_PRO : FALL_ANGLE_NORMAL;
-        if (rc_ch3_us >= 1800)  // Arm active: keep the slightly wider envelope
-            angle_ready = FALL_ANGLE_PRO;
+        int angle_ready = FALL_ANGLE;
 
-        // Keep motors enabled while the robot stays reasonably close to its commanded lean.
-        // A separate hard stop remains for true near-horizontal falls.
-        if ((abs(balance_angle_error) < angle_ready) && (abs(angle_adjusted) < FALL_ANGLE_HARD))
+        if ((abs(angle_adjusted) < angle_ready))
         {
             // NORMAL MODE
             digitalWrite(ENABLE_MOTORS, LOW);  // Motors enable
@@ -502,7 +496,7 @@ void loop()
         {
             // If the robot is tilted more than 40 degrees,
             // we consider it is on its back and we move the arm backward to help it raise up.
-            if (angle_adjusted > 40) {
+            if (angle_adjusted > SERVO_ARM_FLIP_ANGLE) {
                 BROBOT_moveServo1(SERVO_MAX_PULSEWIDTH);
             }
             // If the robot is tilted less than 40 degrees,
@@ -518,10 +512,8 @@ void loop()
         // Servo2 - hold at neutral (no RC channel assigned yet)
         BROBOT_moveServo2(SERVO2_NEUTRO);
 
-        // Normal condition? Use angle error relative to commanded lean so PRO mode can
-        // stay on the user gains even while intentionally pitched further forward.
-        int raiseup_angle = (mode == 1) ? RAISEUP_ANGLE_PRO : RAISEUP_ANGLE_NORMAL;
-        if ((abs(balance_angle_error) < raiseup_angle) && (abs(angle_adjusted) < FALL_ANGLE_HARD))
+        // Normal condition?
+        if (abs(angle_adjusted) < RAISEUP_ANGLE)
         {
             Kp = Kp_user;            // Default user control gains
             Kd = Kd_user;
